@@ -19,9 +19,12 @@
 int deadzone;
 int upperBound;
 int lowerBound;
+bool isKeyboardMode;
+bool lastKeyboardModeKeys[5] = {false, false, false, false, false}; // up, down, left, right, select
 
 void setup() {
   Joystick.useManualSend(true);
+  pinMode(13, OUTPUT);
   setDeadzone();
   setBounds();
   pinMode(BUTTON_PIN, INPUT_PULLUP);
@@ -36,12 +39,15 @@ void setup() {
    */
   //outputInitialState();
   //doMinMaxAccumulationAndOutput();
+
+  isKeyboardMode = false;
+  detectStartupFlags();
 }
 
 void loop() {
   int Xstick = analogRead(STICK_X);
   int Ystick = analogRead(STICK_Y);
-  
+    
   if (isInsideDeadzone(Xstick)) {
     Xstick = 512;
   } else {
@@ -53,16 +59,107 @@ void loop() {
   } else {
     Ystick = constrain(map(Ystick, Y_FROM_LOW, Y_FROM_HIGH, 0, 1023), 0, 1023);
   }
-  
-  Joystick.X(Xstick);
-  Joystick.Y(Ystick);
-  Joystick.button(1, !digitalRead(BUTTON_PIN));
-  Joystick.Z(512);
-  Joystick.Zrotate(512);
-  Joystick.sliderLeft(0);
-  Joystick.sliderRight(0);
-  Joystick.hat(-1);
-  Joystick.send_now();
+
+  if (isKeyboardMode) {
+    bool keyboardModeKeys[5] = {false, false, false, false, false}; // up, down, left, right, select
+    
+    if (Xstick < 612 && Xstick > 412) {
+      keyboardModeKeys[2] = false;
+      keyboardModeKeys[3] = false;
+    } else if (Xstick > 612) {
+      keyboardModeKeys[2] = false;
+      keyboardModeKeys[3] = true;
+    } else {
+      keyboardModeKeys[2] = true;
+      keyboardModeKeys[3] = false;
+    }
+
+    if (Ystick < 612 && Ystick > 412) {
+      keyboardModeKeys[0] = false;
+      keyboardModeKeys[1] = false;
+    } else if (Ystick < 412) {
+      keyboardModeKeys[0] = true;
+      keyboardModeKeys[1] = false;
+    } else {
+      keyboardModeKeys[0] = false;
+      keyboardModeKeys[1] = true;
+    }
+
+    if (!digitalRead(BUTTON_PIN)) {
+      keyboardModeKeys[5] = true;
+    } else {
+      keyboardModeKeys[5] = false;
+    }
+
+    bool isDifferent = false;
+
+    for (int i = 0; i < 5; i++) {
+      bool last = lastKeyboardModeKeys[i];
+      bool current = keyboardModeKeys[i];
+
+      if (current != last) {
+        lastKeyboardModeKeys[i] = current;
+        isDifferent = true;
+
+        switch (i) {
+          case 0:
+            if (current) {
+              Keyboard.set_key1(KEY_W);
+            } else {
+              Keyboard.set_key1(0);
+            }
+
+            break;
+          case 1:
+            if (current) {
+              Keyboard.set_key2(KEY_S);
+            } else {
+              Keyboard.set_key2(0);
+            }
+
+            break;
+          case 2:
+            if (current) {
+              Keyboard.set_key3(KEY_A);
+            } else {
+              Keyboard.set_key3(0);
+            }
+
+            break;
+          case 3:
+            if (current) {
+              Keyboard.set_key4(KEY_D);
+            } else {
+              Keyboard.set_key4(0);
+            }
+
+            break;
+          case 4:
+            if (current) {
+              Keyboard.set_key5(KEY_P);
+            } else {
+              Keyboard.set_key5(0);
+            }
+
+            break;
+        }
+      }
+    }
+
+    if (isDifferent) {
+      Keyboard.send_now();
+    }
+  } else {
+    Joystick.X(Xstick);
+    Joystick.Y(Ystick);
+    Joystick.button(1, !digitalRead(BUTTON_PIN));
+    Joystick.Z(512);
+    Joystick.Zrotate(512);
+    Joystick.sliderLeft(0);
+    Joystick.sliderRight(0);
+    Joystick.hat(-1);
+    Joystick.send_now();
+  }
 }
 
 bool isInsideDeadzone(int rawStickValue) {
@@ -78,6 +175,7 @@ bool isInsideDeadzone(int rawStickValue) {
 }
 
 void setDeadzone() {
+  digitalWrite(13, HIGH);
   deadzone = 0;
   
   unsigned long startTime = millis();
@@ -116,9 +214,24 @@ void setDeadzone() {
 }
 
 void setBounds() {
-  deadzone = deadzone + 20;
+  deadzone = deadzone + 7;
   upperBound = 512 + deadzone;
   lowerBound = 512 - deadzone;
+
+  digitalWrite(13, LOW);
+}
+
+void detectStartupFlags() {
+  unsigned long startTime = millis();
+
+  while ((millis() - startTime) < 5000) {
+    if (!digitalRead(BUTTON_PIN)) {
+      digitalWrite(13, HIGH);
+      isKeyboardMode = true;
+      
+      break;
+    }
+  }
 }
 
 void outputInitialState() {
