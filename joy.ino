@@ -1,9 +1,9 @@
 #include <Bounce.h>
 
 /**
- * Start - PIN defines
- */
- 
+   Start - PIN defines
+*/
+
 /** Analog pin # for the joystick X axis */
 #define STICK_X 9
 
@@ -17,44 +17,49 @@
 #define ALT_LED_PIN -1
 
 /**
- * Stop - PIN defines
- */
-
- /**
-* Start - Binding defines
+   Stop - PIN defines
 */
 
-#define BUTTON_JOYSTICK_1_KEY KEY_ESC
-#define KEYBOARD_MODE_STICK_UP_KEY KEY_I
-#define KEYBOARD_MODE_STICK_DOWN_KEY KEY_K
-#define KEYBOARD_MODE_STICK_LEFT_KEY KEY_J
-#define KEYBOARD_MODE_STICK_RIGHT_KEY KEY_L
+/**
+  Start - Binding defines
+*/
+
+#define BUTTON_JOYSTICK_1_KEY KEY_LEFT_SHIFT
+#define KEYBOARD_MODE_STICK_UP_KEY KEY_W
+#define KEYBOARD_MODE_STICK_DOWN_KEY KEY_S
+#define KEYBOARD_MODE_STICK_LEFT_KEY KEY_A
+#define KEYBOARD_MODE_STICK_RIGHT_KEY KEY_D
 #define KEYBOARD_MODE_MODIFIER_KEY KEY_LEFT_SHIFT
 
 /**
-* Stop - Binding defines
+  Stop - Binding defines
 */
 
 /**
- * High and low values for both of the joystick axes. Get these values from the output of the
- * doMinMaxAccumulationAndOutput() function.
+   High and low values for both of the joystick axes. Get these values from the output of the
+   doMinMaxAccumulationAndOutput() function.
 */
-#define X_FROM_LOW 196
-#define X_FROM_HIGH 845
-#define Y_FROM_LOW 230
-#define Y_FROM_HIGH 856
+#define X_FROM_LOW 281
+#define X_FROM_HIGH 765
+#define Y_FROM_LOW 263
+#define Y_FROM_HIGH 744
+
+#define X_LOW_LIMIT 175
+#define X_HIGH_LIMIT 848
+#define Y_LOW_LIMIT 150
+#define Y_HIGH_LIMIT 838
 
 /**
-* Start - Keyboard mode defines
+  Start - Keyboard mode defines
 */
 
-#define KEYBOARD_MODE_X_START_OFFSET 0
-#define KEYBOARD_MODE_Y_START_OFFSET 0
+#define KEYBOARD_MODE_X_START_OFFSET 15
+#define KEYBOARD_MODE_Y_START_OFFSET 15
 #define KEYBOARD_MODE_X_MODIFIER_SCALE .6
 #define KEYBOARD_MODE_Y_MODIFIER_SCALE .6
 
 /**
-* Stop - Keyboard mode defines
+  Stop - Keyboard mode defines
 */
 
 int Xstick;
@@ -81,7 +86,7 @@ void setup() {
   if (ALT_LED_PIN > 0) {
     pinMode(ALT_LED_PIN, OUTPUT);
   }
-  
+
   setDeadzone();
   setBounds();
   pinMode(JOYSTICK_1_BUTTON_PIN, INPUT_PULLUP);
@@ -96,13 +101,13 @@ void setup() {
   calculateKeyboardModeOffsets();
 
   /**
-   * Uncomment these two function when initially setting up the teensy + joystick. Have a text
-   * editor open and plug in/power on the device. It will do some calcuations and print out information.
-   * Once you see it print out the first set of data, immediately begin rotating the stick making sure to
-   * hit the max outer bounds on each rotation. Once you see the second chunk of data printed, you may stop
-   * the rotations. Use the printed data to set the #define values above. Once that is complete you should
-   * comment these functions back out so they do not execute.
-   */
+     Uncomment these two function when initially setting up the teensy + joystick. Have a text
+     editor open and plug in/power on the device. It will do some calcuations and print out information.
+     Once you see it print out the first set of data, immediately begin rotating the stick making sure to
+     hit the max outer bounds on each rotation. Once you see the second chunk of data printed, you may stop
+     the rotations. Use the printed data to set the #define values above. Once that is complete you should
+     comment these functions back out so they do not execute.
+  */
   //outputInitialState();
   //doMinMaxAccumulationAndOutput();
 
@@ -120,7 +125,7 @@ void setLedState(int state) {
 
 void doStickCalculations(bool constrainDeadzone = false) {
   Xstick = analogRead(STICK_X);
-  Ystick = 1023 - analogRead(STICK_Y);
+  Ystick = analogRead(STICK_Y);
 
   if (constrainDeadzone) {
     if (isInsideDeadzone(Xstick)) {
@@ -128,18 +133,34 @@ void doStickCalculations(bool constrainDeadzone = false) {
     } else {
       if (Xstick > 512) {
         Xstick = constrain(map((Xstick - deadzone), 513, X_FROM_HIGH, 513, 1023), 513, 1023);
-      } else {
+
+        if (Xstick > X_HIGH_LIMIT) {
+          Xstick = 1023;
+        }
+      } else if (Xstick < 512) {
         Xstick = constrain(map((Xstick + deadzone), X_FROM_LOW, 511, 0, 511), 0, 511);
+
+        if (Xstick < X_LOW_LIMIT) {
+          Xstick = 0;
+        }
       }
     }
-    
+
     if (isInsideDeadzone(Ystick)) {
       Ystick = 512;
     } else {
       if (Ystick > 512) {
         Ystick = constrain(map((Ystick - deadzone), 513, Y_FROM_HIGH, 513, 1023), 513, 1023);
-      } else {
+
+        if (Ystick > Y_HIGH_LIMIT) {
+          Ystick = 1023;
+        }
+      } else if (Ystick < 512) {
         Ystick = constrain(map((Ystick + deadzone), Y_FROM_LOW, 511, 0, 511), 0, 511);
+
+        if (Ystick < Y_LOW_LIMIT) {
+          Ystick = 0;
+        }
       }
     }
   }
@@ -152,7 +173,7 @@ void loop() {
   if (isKeyboardMode) {
     // up, down, left, right, modifier
     bool keyboardModeKeyPress[5] = {false, false, false, false, false};
-    
+
     if (Xstick > (512 + KEYBOARD_MODE_X_START_OFFSET)) {
       keyboardModeKeyPress[3] = true;
 
@@ -210,11 +231,11 @@ void loop() {
     handleKeyboundModeKey(KEYBOARD_MODE_STICK_LEFT_KEY, keyboardModeKeyPress[2]);
     handleKeyboundModeKey(KEYBOARD_MODE_STICK_RIGHT_KEY, keyboardModeKeyPress[3]);
     handleKeyboundModeKey(KEYBOARD_MODE_MODIFIER_KEY, keyboardModeKeyPress[4]);
-    
+
     if (joystickButton1.fallingEdge()) {
       Keyboard.press(BUTTON_JOYSTICK_1_KEY);
     }
-   
+
     if (joystickButton1.risingEdge()) {
       Keyboard.release(BUTTON_JOYSTICK_1_KEY);
     }
@@ -225,11 +246,11 @@ void loop() {
     if (joystickButton1.fallingEdge()) {
       Joystick.button(1, 1);
     }
-   
+
     if (joystickButton1.risingEdge()) {
       Joystick.button(1, 0);
     }
-    
+
     Joystick.Z(512);
     Joystick.Zrotate(512);
     Joystick.sliderLeft(0);
@@ -241,7 +262,7 @@ void loop() {
 
 void handleKeyboundModeKey(int key, bool isPress) {
   int keyIndex = -1;
-  
+
   switch (key) {
     case KEYBOARD_MODE_STICK_UP_KEY:
       keyIndex = 0;
@@ -280,10 +301,10 @@ bool isInsideDeadzone(int rawStickValue) {
 
   if ((rawStickValue > 512 && rawStickValue <= upperBound) ||
       (rawStickValue < 512 && rawStickValue >= lowerBound)
-  ) {
+     ) {
     returnValue = true;
   }
-  
+
   return returnValue;
 }
 
@@ -295,20 +316,20 @@ int getDeadzoneAdjustedValue(int value) {
   if (value < 512) {
     value = value + deadzone;
   }
-  
+
   return value;
 }
 
 void setDeadzone() {
   setLedState(HIGH);
   deadzone = 0;
-  
+
   unsigned long startTime = millis();
   unsigned long highValue = 0;
 
   while ((millis() - startTime) < 5000) {
     doStickCalculations();
-    
+
     int localXstick = abs(Xstick);
     int localYstick = abs(Ystick);
     int diffX = 0;
@@ -329,7 +350,7 @@ void setDeadzone() {
     if (localYstick > 512) {
       diffY = localYstick - 512;
     }
-    
+
     if (diffX >= diffY) {
       highValue = diffX;
     } else {
@@ -357,12 +378,12 @@ void detectStartupFlags() {
 
   while ((millis() - startTime) < 5000) {
     unsigned long now = millis();
-    
+
     joystickButton1.update();
-    
+
     if (now - lastBlink >= 500) {
       lastBlink = now;
-  
+
       if (ledState == LOW) {
         ledState = HIGH;
       } else {
@@ -371,24 +392,24 @@ void detectStartupFlags() {
 
       setLedState(ledState);
     }
-    
+
     if (joystickButton1.fallingEdge()) {
       setLedState(HIGH);
       isKeyboardMode = true;
       isHoldToWalk = false;
       isHoldToRun = false;
-     
+
       break;
     }
 
     doStickCalculations();
-    
+
     if (Ystick > yUpperBounds) {
       setLedState(HIGH);
       isKeyboardMode = true;
       isHoldToWalk = false;
       isHoldToRun = true;
-     
+
       break;
     }
 
@@ -397,7 +418,7 @@ void detectStartupFlags() {
       isKeyboardMode = true;
       isHoldToWalk = true;
       isHoldToRun = false;
-     
+
       break;
     }
   }
@@ -416,7 +437,7 @@ void calculateKeyboardModeOffsets() {
 
 void outputInitialState() {
   doStickCalculations();
-  
+
   Keyboard.print("Deadzone: ");
   Keyboard.println(deadzone);
   Keyboard.print("Upper Bound: ");
@@ -431,11 +452,11 @@ void outputInitialState() {
   if (isInsideDeadzone(Xstick)) {
     Xstick = 512;
   }
-  
+
   if (isInsideDeadzone(Ystick)) {
     Ystick = 512;
   }
-  
+
   Keyboard.print("Adjusted X Rest: ");
   Keyboard.println(Xstick);
   Keyboard.print("Adjusted Y Rest: ");
@@ -459,30 +480,30 @@ void doMinMaxAccumulationAndOutput() {
 
   while ((millis() - startTime) < 5000) {
     doStickCalculations();
-    
+
     if (Xstick < lowestX) {
       lowestX = Xstick;
     }
-  
+
     if (Xstick > highestX) {
       highestX = Xstick;
     }
-  
+
     if (Ystick < lowestY) {
       lowestY = Ystick;
     }
-  
+
     if (Ystick > highestY) {
       highestY = Ystick;
     }
   }
 
-  Keyboard.print("Highest X: ");
-  Keyboard.println(highestX);
   Keyboard.print("Lowest X: ");
   Keyboard.println(lowestX);
-  Keyboard.print("Highest Y: ");
-  Keyboard.println(highestY);
+  Keyboard.print("Highest X: ");
+  Keyboard.println(highestX);
   Keyboard.print("Lowest Y: ");
   Keyboard.println(lowestY);
+  Keyboard.print("Highest Y: ");
+  Keyboard.println(highestY);
 }
