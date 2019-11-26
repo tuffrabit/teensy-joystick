@@ -36,11 +36,6 @@
   Stop - Binding defines
 */
 
-#define X_LOW_LIMIT 175
-#define X_HIGH_LIMIT 848
-#define Y_LOW_LIMIT 150
-#define Y_HIGH_LIMIT 838
-
 /**
   Start - Keyboard mode defines
 */
@@ -128,17 +123,9 @@ void doStickCalculations(bool constrainDeadzone = false) {
       Xstick = 512;
     } else {
       if (Xstick > 512) {
-        Xstick = constrain(map((Xstick - deadzone), 513, xHigh, 513, 1023), 513, 1023);
-
-        if (Xstick > X_HIGH_LIMIT) {
-          Xstick = 1023;
-        }
+        Xstick = constrain(map((Xstick - deadzone), 513, (xHigh - deadzone), 513, 1023), 513, 1023);
       } else if (Xstick < 512) {
-        Xstick = constrain(map((Xstick + deadzone), xLow, 511, 0, 511), 0, 511);
-
-        if (Xstick < X_LOW_LIMIT) {
-          Xstick = 0;
-        }
+        Xstick = constrain(map((Xstick + deadzone), (xLow + deadzone), 511, 0, 511), 0, 511);
       }
     }
 
@@ -146,17 +133,9 @@ void doStickCalculations(bool constrainDeadzone = false) {
       Ystick = 512;
     } else {
       if (Ystick > 512) {
-        Ystick = constrain(map((Ystick - deadzone), 513, yHigh, 513, 1023), 513, 1023);
-
-        if (Ystick > Y_HIGH_LIMIT) {
-          Ystick = 1023;
-        }
+        Ystick = constrain(map((Ystick - deadzone), 513, (yHigh - deadzone), 513, 1023), 513, 1023);
       } else if (Ystick < 512) {
-        Ystick = constrain(map((Ystick + deadzone), yLow, 511, 0, 511), 0, 511);
-
-        if (Ystick < Y_LOW_LIMIT) {
-          Ystick = 0;
-        }
+        Ystick = constrain(map((Ystick + deadzone), (yLow + deadzone), 511, 0, 511), 0, 511);
       }
     }
   }
