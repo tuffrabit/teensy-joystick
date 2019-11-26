@@ -4,7 +4,6 @@
 /**
    Start - PIN defines
 */
-
 /** Analog pin # for the joystick X axis */
 #define STICK_X 9
 
@@ -16,7 +15,6 @@
 
 /** Pin # for the extra signal LED. Set to a valid pin # if you have an extra LED wired to said pin. (HINT: -1 isn't a valid pin #) */
 #define ALT_LED_PIN -1
-
 /**
    Stop - PIN defines
 */
@@ -24,14 +22,12 @@
 /**
   Start - Binding defines
 */
-
 #define BUTTON_JOYSTICK_1_KEY KEY_LEFT_SHIFT
 #define KEYBOARD_MODE_STICK_UP_KEY KEY_W
 #define KEYBOARD_MODE_STICK_DOWN_KEY KEY_S
 #define KEYBOARD_MODE_STICK_LEFT_KEY KEY_A
 #define KEYBOARD_MODE_STICK_RIGHT_KEY KEY_D
 #define KEYBOARD_MODE_MODIFIER_KEY KEY_LEFT_SHIFT
-
 /**
   Stop - Binding defines
 */
@@ -39,12 +35,10 @@
 /**
   Start - Keyboard mode defines
 */
-
-#define KEYBOARD_MODE_X_START_OFFSET 15
-#define KEYBOARD_MODE_Y_START_OFFSET 15
+#define KEYBOARD_MODE_X_START_OFFSET 50
+#define KEYBOARD_MODE_Y_START_OFFSET 50
 #define KEYBOARD_MODE_X_MODIFIER_SCALE .6
 #define KEYBOARD_MODE_Y_MODIFIER_SCALE .6
-
 /**
   Stop - Keyboard mode defines
 */
