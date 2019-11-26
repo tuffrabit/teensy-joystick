@@ -334,11 +334,10 @@ void setBounds() {
   deadzone = deadzone + 7;
   upperBound = 512 + deadzone;
   lowerBound = 512 - deadzone;
-
-  xLow = EEPROM.read(0) << 8 | EEPROM.read(1);
-  xHigh = EEPROM.read(2) << 8 | EEPROM.read(3);
-  yLow = EEPROM.read(4) << 8 | EEPROM.read(5);
-  yHigh = EEPROM.read(6) << 8 | EEPROM.read(7);
+  xLow = getLowestXFromEEPROM();
+  xHigh = getHighestXFromEEPROM();
+  yLow = getLowestYFromEEPROM();
+  yHigh = getHighestYFromEEPROM();
   
   setLedState(LOW);
 }
@@ -410,6 +409,33 @@ void detectStartupFlags() {
   }
 }
 
+void updateBoundsToEEPROM(short lowestX, short highestX, short lowestY, short highestY) {
+  EEPROM.update(0, highByte(lowestX));
+  EEPROM.update(1, lowByte(lowestX));
+  EEPROM.update(2, highByte(highestX));
+  EEPROM.update(3, lowByte(highestX));
+  EEPROM.update(4, highByte(lowestY));
+  EEPROM.update(5, lowByte(lowestY));
+  EEPROM.update(6, highByte(highestY));
+  EEPROM.update(7, lowByte(highestY));
+}
+
+short getLowestXFromEEPROM() {
+  return EEPROM.read(0) << 8 | EEPROM.read(1);
+}
+
+short getHighestXFromEEPROM() {
+  return EEPROM.read(2) << 8 | EEPROM.read(3);
+}
+
+short getLowestYFromEEPROM() {
+  return EEPROM.read(4) << 8 | EEPROM.read(5);
+}
+
+short getHighestYFromEEPROM() {
+  return EEPROM.read(6) << 8 | EEPROM.read(7);
+}
+
 void saveBoundsToEEPROM() {
   setLedState(HIGH);
   
@@ -439,35 +465,13 @@ void saveBoundsToEEPROM() {
     }
   }
 
-  EEPROM.write(0, highByte(lowestX));
-  EEPROM.write(1, lowByte(lowestX));
-  EEPROM.write(2, highByte(highestX));
-  EEPROM.write(3, lowByte(highestX));
-  EEPROM.write(4, highByte(lowestY));
-  EEPROM.write(5, lowByte(lowestY));
-  EEPROM.write(6, highByte(highestY));
-  EEPROM.write(7, lowByte(highestY));
-  
+  updateBoundsToEEPROM(lowestX, highestX, lowestY, highestY);
   setLedState(LOW);
 }
 
 void clearBoundsFromEEPROM() {
   setLedState(HIGH);
-
-  short highestX = 512;
-  short lowestX = 512;
-  short highestY = 512;
-  short lowestY = 512;
-  
-  EEPROM.write(0, highByte(lowestX));
-  EEPROM.write(1, lowByte(lowestX));
-  EEPROM.write(2, highByte(highestX));
-  EEPROM.write(3, lowByte(highestX));
-  EEPROM.write(4, highByte(lowestY));
-  EEPROM.write(5, lowByte(lowestY));
-  EEPROM.write(6, highByte(highestY));
-  EEPROM.write(7, lowByte(highestY));
-  
+  updateBoundsToEEPROM(0, 1023, 0, 1023);
   setLedState(LOW);
 }
 
@@ -549,4 +553,13 @@ void doMinMaxAccumulationAndOutput() {
   Keyboard.println(lowestY);
   Keyboard.print("Highest Y: ");
   Keyboard.println(highestY);
+  Keyboard.println("");
+  Keyboard.print("EEPROM Lowest X: ");
+  Keyboard.println(getLowestXFromEEPROM());
+  Keyboard.print("EEPROM Highest X: ");
+  Keyboard.println(getHighestXFromEEPROM());
+  Keyboard.print("EEPROM Lowest Y: ");
+  Keyboard.println(getLowestYFromEEPROM());
+  Keyboard.print("EEPROM Highest Y: ");
+  Keyboard.println(getHighestYFromEEPROM());
 }
