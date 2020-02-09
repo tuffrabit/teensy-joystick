@@ -46,6 +46,7 @@
 short Xstick;
 short Ystick;
 short deadzone;
+short edgeAdjust;
 short upperBound;
 short lowerBound;
 short xLow;
@@ -117,9 +118,9 @@ void doStickCalculations(bool constrainDeadzone = false) {
       Xstick = 512;
     } else {
       if (Xstick > 512) {
-        Xstick = constrain(map((Xstick - deadzone), 513, (xHigh - deadzone), 513, 1023), 513, 1023);
+        Xstick = constrain(map((Xstick - deadzone), 513, (xHigh - edgeAdjust), 513, 1023), 513, 1023);
       } else if (Xstick < 512) {
-        Xstick = constrain(map((Xstick + deadzone), (xLow + deadzone), 511, 0, 511), 0, 511);
+        Xstick = constrain(map((Xstick + deadzone), (xLow + edgeAdjust), 511, 0, 511), 0, 511);
       }
     }
 
@@ -127,9 +128,9 @@ void doStickCalculations(bool constrainDeadzone = false) {
       Ystick = 512;
     } else {
       if (Ystick > 512) {
-        Ystick = constrain(map((Ystick - deadzone), 513, (yHigh - deadzone), 513, 1023), 513, 1023);
+        Ystick = constrain(map((Ystick - deadzone), 513, (yHigh - edgeAdjust), 513, 1023), 513, 1023);
       } else if (Ystick < 512) {
-        Ystick = constrain(map((Ystick + deadzone), (yLow + deadzone), 511, 0, 511), 0, 511);
+        Ystick = constrain(map((Ystick + deadzone), (yLow + edgeAdjust), 511, 0, 511), 0, 511);
       }
     }
   }
@@ -332,12 +333,13 @@ void setDeadzone() {
 
 void setBounds() {
   deadzone = deadzone + 7;
+  edgeAdjust = deadzone + 15;
   upperBound = 512 + deadzone;
   lowerBound = 512 - deadzone;
   xLow = getLowestXFromEEPROM();
   xHigh = getHighestXFromEEPROM();
-  yLow = getLowestYFromEEPROM();
-  yHigh = getHighestYFromEEPROM();
+  yLow = 1023 - getHighestYFromEEPROM();
+  yHigh = 1023 - getLowestYFromEEPROM();
   
   setLedState(LOW);
 }
@@ -516,6 +518,14 @@ void outputInitialState() {
   Keyboard.println(keyboardModeYUpperModifierOffset);
   Keyboard.print("Keyboard Mode Y Lower Modifier Offset: ");
   Keyboard.println(keyboardModeYLowerModifierOffset);
+  Keyboard.print("EEPROM Lowest X: ");
+  Keyboard.println(getLowestXFromEEPROM());
+  Keyboard.print("EEPROM Highest X: ");
+  Keyboard.println(getHighestXFromEEPROM());
+  Keyboard.print("EEPROM Lowest Y: ");
+  Keyboard.println(getLowestYFromEEPROM());
+  Keyboard.print("EEPROM Highest Y: ");
+  Keyboard.println(getHighestYFromEEPROM());
 }
 
 void doMinMaxAccumulationAndOutput() {
@@ -554,12 +564,4 @@ void doMinMaxAccumulationAndOutput() {
   Keyboard.print("Highest Y: ");
   Keyboard.println(highestY);
   Keyboard.println("");
-  Keyboard.print("EEPROM Lowest X: ");
-  Keyboard.println(getLowestXFromEEPROM());
-  Keyboard.print("EEPROM Highest X: ");
-  Keyboard.println(getHighestXFromEEPROM());
-  Keyboard.print("EEPROM Lowest Y: ");
-  Keyboard.println(getLowestYFromEEPROM());
-  Keyboard.print("EEPROM Highest Y: ");
-  Keyboard.println(getHighestYFromEEPROM());
 }
