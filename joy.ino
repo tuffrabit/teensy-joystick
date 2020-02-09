@@ -1,9 +1,9 @@
 #include <Bounce.h>
+#include <EEPROM.h>
 
 /**
    Start - PIN defines
 */
-
 /** Analog pin # for the joystick X axis */
 #define STICK_X 9
 
@@ -15,7 +15,6 @@
 
 /** Pin # for the extra signal LED. Set to a valid pin # if you have an extra LED wired to said pin. (HINT: -1 isn't a valid pin #) */
 #define ALT_LED_PIN -1
-
 /**
    Stop - PIN defines
 */
@@ -23,57 +22,44 @@
 /**
   Start - Binding defines
 */
-
 #define BUTTON_JOYSTICK_1_KEY KEY_LEFT_SHIFT
 #define KEYBOARD_MODE_STICK_UP_KEY KEY_W
 #define KEYBOARD_MODE_STICK_DOWN_KEY KEY_S
 #define KEYBOARD_MODE_STICK_LEFT_KEY KEY_A
 #define KEYBOARD_MODE_STICK_RIGHT_KEY KEY_D
 #define KEYBOARD_MODE_MODIFIER_KEY KEY_LEFT_SHIFT
-
 /**
   Stop - Binding defines
 */
 
 /**
-   High and low values for both of the joystick axes. Get these values from the output of the
-   doMinMaxAccumulationAndOutput() function.
-*/
-#define X_FROM_LOW 281
-#define X_FROM_HIGH 765
-#define Y_FROM_LOW 263
-#define Y_FROM_HIGH 744
-
-#define X_LOW_LIMIT 175
-#define X_HIGH_LIMIT 848
-#define Y_LOW_LIMIT 150
-#define Y_HIGH_LIMIT 838
-
-/**
   Start - Keyboard mode defines
 */
-
-#define KEYBOARD_MODE_X_START_OFFSET 15
-#define KEYBOARD_MODE_Y_START_OFFSET 15
+#define KEYBOARD_MODE_X_START_OFFSET 50
+#define KEYBOARD_MODE_Y_START_OFFSET 50
 #define KEYBOARD_MODE_X_MODIFIER_SCALE .6
 #define KEYBOARD_MODE_Y_MODIFIER_SCALE .6
-
 /**
   Stop - Keyboard mode defines
 */
 
-int Xstick;
-int Ystick;
-int deadzone;
-int upperBound;
-int lowerBound;
+short Xstick;
+short Ystick;
+short deadzone;
+short edgeAdjust;
+short upperBound;
+short lowerBound;
+short xLow;
+short xHigh;
+short yLow;
+short yHigh;
 bool isKeyboardMode;
 bool isHoldToWalk;
 bool isHoldToRun;
-int keyboardModeXUpperModifierOffset;
-int keyboardModeXLowerModifierOffset;
-int keyboardModeYUpperModifierOffset;
-int keyboardModeYLowerModifierOffset;
+short keyboardModeXUpperModifierOffset;
+short keyboardModeXLowerModifierOffset;
+short keyboardModeYUpperModifierOffset;
+short keyboardModeYLowerModifierOffset;
 
 // up, down, left, right, modifier
 bool keyboardModeKeyStatus[5] = {false, false, false, false, false};
@@ -101,11 +87,11 @@ void setup() {
   calculateKeyboardModeOffsets();
 
   /**
-     Uncomment these two function when initially setting up the teensy + joystick. Have a text
+     Uncomment these two function when troubleshooting or setting up the teensy + joystick. Have a text
      editor open and plug in/power on the device. It will do some calcuations and print out information.
      Once you see it print out the first set of data, immediately begin rotating the stick making sure to
      hit the max outer bounds on each rotation. Once you see the second chunk of data printed, you may stop
-     the rotations. Use the printed data to set the #define values above. Once that is complete you should
+     the rotations. Use the printed data to compare to what's been stored in EEPROM. Once that is complete you should
      comment these functions back out so they do not execute.
   */
   //outputInitialState();
@@ -132,17 +118,9 @@ void doStickCalculations(bool constrainDeadzone = false) {
       Xstick = 512;
     } else {
       if (Xstick > 512) {
-        Xstick = constrain(map((Xstick - deadzone), 513, X_FROM_HIGH, 513, 1023), 513, 1023);
-
-        if (Xstick > X_HIGH_LIMIT) {
-          Xstick = 1023;
-        }
+        Xstick = constrain(map((Xstick - deadzone), 513, (xHigh - edgeAdjust), 513, 1023), 513, 1023);
       } else if (Xstick < 512) {
-        Xstick = constrain(map((Xstick + deadzone), X_FROM_LOW, 511, 0, 511), 0, 511);
-
-        if (Xstick < X_LOW_LIMIT) {
-          Xstick = 0;
-        }
+        Xstick = constrain(map((Xstick + deadzone), (xLow + edgeAdjust), 511, 0, 511), 0, 511);
       }
     }
 
@@ -150,17 +128,9 @@ void doStickCalculations(bool constrainDeadzone = false) {
       Ystick = 512;
     } else {
       if (Ystick > 512) {
-        Ystick = constrain(map((Ystick - deadzone), 513, Y_FROM_HIGH, 513, 1023), 513, 1023);
-
-        if (Ystick > Y_HIGH_LIMIT) {
-          Ystick = 1023;
-        }
+        Ystick = constrain(map((Ystick - deadzone), 513, (yHigh - edgeAdjust), 513, 1023), 513, 1023);
       } else if (Ystick < 512) {
-        Ystick = constrain(map((Ystick + deadzone), Y_FROM_LOW, 511, 0, 511), 0, 511);
-
-        if (Ystick < Y_LOW_LIMIT) {
-          Ystick = 0;
-        }
+        Ystick = constrain(map((Ystick + deadzone), (yLow + edgeAdjust), 511, 0, 511), 0, 511);
       }
     }
   }
@@ -363,9 +333,14 @@ void setDeadzone() {
 
 void setBounds() {
   deadzone = deadzone + 7;
+  edgeAdjust = deadzone + 15;
   upperBound = 512 + deadzone;
   lowerBound = 512 - deadzone;
-
+  xLow = getLowestXFromEEPROM();
+  xHigh = getHighestXFromEEPROM();
+  yLow = 1023 - getHighestYFromEEPROM();
+  yHigh = 1023 - getLowestYFromEEPROM();
+  
   setLedState(LOW);
 }
 
@@ -373,8 +348,6 @@ void detectStartupFlags() {
   unsigned long startTime = millis();
   unsigned long lastBlink = 0;
   int ledState = LOW;
-  int yUpperBounds = ((Y_FROM_HIGH - 512) * .8) + 512;
-  int yLowerBounds = 512 - ((512 - Y_FROM_LOW) * .8);
 
   while ((millis() - startTime) < 5000) {
     unsigned long now = millis();
@@ -404,7 +377,17 @@ void detectStartupFlags() {
 
     doStickCalculations();
 
-    if (Ystick > yUpperBounds) {
+    if (Xstick > 700) {
+      saveBoundsToEEPROM();
+      break;
+    }
+
+    if (Xstick < 324) {
+      clearBoundsFromEEPROM();
+      break;
+    }
+
+    if (Ystick > 700) {
       setLedState(HIGH);
       isKeyboardMode = true;
       isHoldToWalk = false;
@@ -413,7 +396,7 @@ void detectStartupFlags() {
       break;
     }
 
-    if (Ystick < yLowerBounds) {
+    if (Ystick < 324) {
       setLedState(HIGH);
       isKeyboardMode = true;
       isHoldToWalk = true;
@@ -428,11 +411,77 @@ void detectStartupFlags() {
   }
 }
 
+void updateBoundsToEEPROM(short lowestX, short highestX, short lowestY, short highestY) {
+  EEPROM.update(0, highByte(lowestX));
+  EEPROM.update(1, lowByte(lowestX));
+  EEPROM.update(2, highByte(highestX));
+  EEPROM.update(3, lowByte(highestX));
+  EEPROM.update(4, highByte(lowestY));
+  EEPROM.update(5, lowByte(lowestY));
+  EEPROM.update(6, highByte(highestY));
+  EEPROM.update(7, lowByte(highestY));
+}
+
+short getLowestXFromEEPROM() {
+  return EEPROM.read(0) << 8 | EEPROM.read(1);
+}
+
+short getHighestXFromEEPROM() {
+  return EEPROM.read(2) << 8 | EEPROM.read(3);
+}
+
+short getLowestYFromEEPROM() {
+  return EEPROM.read(4) << 8 | EEPROM.read(5);
+}
+
+short getHighestYFromEEPROM() {
+  return EEPROM.read(6) << 8 | EEPROM.read(7);
+}
+
+void saveBoundsToEEPROM() {
+  setLedState(HIGH);
+  
+  unsigned long startTime = millis();
+  short highestX = 512;
+  short lowestX = 512;
+  short highestY = 512;
+  short lowestY = 512;
+
+  while ((millis() - startTime) < 5000) {
+    doStickCalculations();
+
+    if (Xstick < lowestX) {
+      lowestX = Xstick;
+    }
+
+    if (Xstick > highestX) {
+      highestX = Xstick;
+    }
+
+    if (Ystick < lowestY) {
+      lowestY = Ystick;
+    }
+
+    if (Ystick > highestY) {
+      highestY = Ystick;
+    }
+  }
+
+  updateBoundsToEEPROM(lowestX, highestX, lowestY, highestY);
+  setLedState(LOW);
+}
+
+void clearBoundsFromEEPROM() {
+  setLedState(HIGH);
+  updateBoundsToEEPROM(0, 1023, 0, 1023);
+  setLedState(LOW);
+}
+
 void calculateKeyboardModeOffsets() {
-  keyboardModeXUpperModifierOffset = abs((map(X_FROM_HIGH, 513, X_FROM_HIGH, 513, 1023) - (513 + KEYBOARD_MODE_X_START_OFFSET)) * KEYBOARD_MODE_X_MODIFIER_SCALE);
-  keyboardModeXLowerModifierOffset = abs((map(X_FROM_LOW, X_FROM_LOW, 511, 0, 511) - (511 - KEYBOARD_MODE_X_START_OFFSET)) * KEYBOARD_MODE_X_MODIFIER_SCALE);
-  keyboardModeYUpperModifierOffset = abs((map(Y_FROM_HIGH, 513, Y_FROM_HIGH, 513, 1023) - (513 + KEYBOARD_MODE_Y_START_OFFSET)) * KEYBOARD_MODE_Y_MODIFIER_SCALE);
-  keyboardModeYLowerModifierOffset = abs((map(Y_FROM_LOW, Y_FROM_LOW, 511, 0, 511) - (511 - KEYBOARD_MODE_Y_START_OFFSET)) * KEYBOARD_MODE_Y_MODIFIER_SCALE);
+  keyboardModeXUpperModifierOffset = abs((map(xHigh, 513, xHigh, 513, 1023) - (513 + KEYBOARD_MODE_X_START_OFFSET)) * KEYBOARD_MODE_X_MODIFIER_SCALE);
+  keyboardModeXLowerModifierOffset = abs((map(xLow, xLow, 511, 0, 511) - (511 - KEYBOARD_MODE_X_START_OFFSET)) * KEYBOARD_MODE_X_MODIFIER_SCALE);
+  keyboardModeYUpperModifierOffset = abs((map(yHigh, 513, yHigh, 513, 1023) - (513 + KEYBOARD_MODE_Y_START_OFFSET)) * KEYBOARD_MODE_Y_MODIFIER_SCALE);
+  keyboardModeYLowerModifierOffset = abs((map(yLow, yLow, 511, 0, 511) - (511 - KEYBOARD_MODE_Y_START_OFFSET)) * KEYBOARD_MODE_Y_MODIFIER_SCALE);
 }
 
 void outputInitialState() {
@@ -469,6 +518,14 @@ void outputInitialState() {
   Keyboard.println(keyboardModeYUpperModifierOffset);
   Keyboard.print("Keyboard Mode Y Lower Modifier Offset: ");
   Keyboard.println(keyboardModeYLowerModifierOffset);
+  Keyboard.print("EEPROM Lowest X: ");
+  Keyboard.println(getLowestXFromEEPROM());
+  Keyboard.print("EEPROM Highest X: ");
+  Keyboard.println(getHighestXFromEEPROM());
+  Keyboard.print("EEPROM Lowest Y: ");
+  Keyboard.println(getLowestYFromEEPROM());
+  Keyboard.print("EEPROM Highest Y: ");
+  Keyboard.println(getHighestYFromEEPROM());
 }
 
 void doMinMaxAccumulationAndOutput() {
@@ -506,4 +563,5 @@ void doMinMaxAccumulationAndOutput() {
   Keyboard.println(lowestY);
   Keyboard.print("Highest Y: ");
   Keyboard.println(highestY);
+  Keyboard.println("");
 }
