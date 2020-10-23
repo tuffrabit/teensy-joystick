@@ -36,8 +36,6 @@
 */
 #define KEYBOARD_MODE_X_START_OFFSET 250
 #define KEYBOARD_MODE_Y_START_OFFSET 250
-#define KEYBOARD_MODE_X_MODIFIER_SCALE .6
-#define KEYBOARD_MODE_Y_MODIFIER_SCALE .6
 /**
   Stop - Keyboard mode defines
 */
