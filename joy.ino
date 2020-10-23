@@ -35,8 +35,8 @@
 /**
   Start - Keyboard mode defines
 */
-#define KEYBOARD_MODE_X_START_OFFSET 50
-#define KEYBOARD_MODE_Y_START_OFFSET 50
+#define KEYBOARD_MODE_X_START_OFFSET 250
+#define KEYBOARD_MODE_Y_START_OFFSET 250
 #define KEYBOARD_MODE_X_MODIFIER_SCALE .6
 #define KEYBOARD_MODE_Y_MODIFIER_SCALE .6
 /**
@@ -338,8 +338,28 @@ void setBounds() {
   lowerBound = 512 - deadzone;
   xLow = getLowestXFromEEPROM();
   xHigh = getHighestXFromEEPROM();
-  yLow = 1023 - getHighestYFromEEPROM();
-  yHigh = 1023 - getLowestYFromEEPROM();
+  yLow = getHighestYFromEEPROM();
+  yHigh = getLowestYFromEEPROM();
+
+  if (xLow == -1) {
+    xLow = 250;
+  }
+
+  if (xHigh == -1) {
+    xHigh = 850;
+  }
+
+  if (yLow == -1) {
+    yLow = 250;
+  } else {
+    yLow = 1023 - yLow;
+  }
+
+  if (yHigh == -1) {
+    yHigh = 850;
+  } else {
+    yHigh = 1023 - yHigh;
+  }
   
   setLedState(LOW);
 }
@@ -473,7 +493,7 @@ void saveBoundsToEEPROM() {
 
 void clearBoundsFromEEPROM() {
   setLedState(HIGH);
-  updateBoundsToEEPROM(0, 1023, 0, 1023);
+  updateBoundsToEEPROM(-1, -1, -1, -1);
   setLedState(LOW);
 }
 
