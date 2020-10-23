@@ -27,7 +27,6 @@
 #define KEYBOARD_MODE_STICK_DOWN_KEY KEY_S
 #define KEYBOARD_MODE_STICK_LEFT_KEY KEY_A
 #define KEYBOARD_MODE_STICK_RIGHT_KEY KEY_D
-#define KEYBOARD_MODE_MODIFIER_KEY KEY_LEFT_SHIFT
 /**
   Stop - Binding defines
 */
@@ -54,15 +53,9 @@ short xHigh;
 short yLow;
 short yHigh;
 bool isKeyboardMode;
-bool isHoldToWalk;
-bool isHoldToRun;
-short keyboardModeXUpperModifierOffset;
-short keyboardModeXLowerModifierOffset;
-short keyboardModeYUpperModifierOffset;
-short keyboardModeYLowerModifierOffset;
 
-// up, down, left, right, modifier
-bool keyboardModeKeyStatus[5] = {false, false, false, false, false};
+// up, down, left, right
+bool keyboardModeKeyStatus[5] = {false, false, false, false};
 Bounce joystickButton1 = Bounce(JOYSTICK_1_BUTTON_PIN, 10);
 
 void setup() {
@@ -81,10 +74,7 @@ void setup() {
   Ystick = 512;
 
   isKeyboardMode = false;
-  isHoldToWalk = false;
-  isHoldToRun = false;
   detectStartupFlags();
-  calculateKeyboardModeOffsets();
 
   /**
      Uncomment these two function when troubleshooting or setting up the teensy + joystick. Have a text
@@ -146,61 +136,20 @@ void loop() {
 
     if (Xstick > (512 + KEYBOARD_MODE_X_START_OFFSET)) {
       keyboardModeKeyPress[3] = true;
-
-      if (Xstick < (512 + keyboardModeXUpperModifierOffset)) {
-        if (isHoldToWalk) {
-          keyboardModeKeyPress[4] = true;
-        }
-      } else {
-        if (isHoldToRun) {
-          keyboardModeKeyPress[4] = true;
-        }
-      }
     } else if (Xstick < (512 - KEYBOARD_MODE_X_START_OFFSET)) {
       keyboardModeKeyPress[2] = true;
-
-      if (Xstick > (512 - keyboardModeXLowerModifierOffset)) {
-        if (isHoldToWalk) {
-          keyboardModeKeyPress[4] = true;
-        }
-      } else {
-        if (isHoldToRun) {
-          keyboardModeKeyPress[4] = true;
-        }
-      }
     }
 
     if (Ystick < (512 - KEYBOARD_MODE_Y_START_OFFSET)) {
       keyboardModeKeyPress[0] = true;
-
-      if (Ystick > (512 - keyboardModeYLowerModifierOffset)) {
-        if (isHoldToWalk) {
-          keyboardModeKeyPress[4] = true;
-        }
-      } else {
-        if (isHoldToRun) {
-          keyboardModeKeyPress[4] = true;
-        }
-      }
     } else if (Ystick > (512 + KEYBOARD_MODE_Y_START_OFFSET)) {
       keyboardModeKeyPress[1] = true;
-
-      if (Ystick < (512 + keyboardModeYUpperModifierOffset)) {
-        if (isHoldToWalk) {
-          keyboardModeKeyPress[4] = true;
-        }
-      } else {
-        if (isHoldToRun) {
-          keyboardModeKeyPress[4] = true;
-        }
-      }
     }
 
     handleKeyboundModeKey(KEYBOARD_MODE_STICK_UP_KEY, keyboardModeKeyPress[0]);
     handleKeyboundModeKey(KEYBOARD_MODE_STICK_DOWN_KEY, keyboardModeKeyPress[1]);
     handleKeyboundModeKey(KEYBOARD_MODE_STICK_LEFT_KEY, keyboardModeKeyPress[2]);
     handleKeyboundModeKey(KEYBOARD_MODE_STICK_RIGHT_KEY, keyboardModeKeyPress[3]);
-    handleKeyboundModeKey(KEYBOARD_MODE_MODIFIER_KEY, keyboardModeKeyPress[4]);
 
     if (joystickButton1.fallingEdge()) {
       Keyboard.press(BUTTON_JOYSTICK_1_KEY);
@@ -245,9 +194,6 @@ void handleKeyboundModeKey(int key, bool isPress) {
       break;
     case KEYBOARD_MODE_STICK_RIGHT_KEY:
       keyIndex = 3;
-      break;
-    case KEYBOARD_MODE_MODIFIER_KEY:
-      keyIndex = 4;
       break;
   }
 
@@ -389,8 +335,6 @@ void detectStartupFlags() {
     if (joystickButton1.fallingEdge()) {
       setLedState(HIGH);
       isKeyboardMode = true;
-      isHoldToWalk = false;
-      isHoldToRun = false;
 
       break;
     }
@@ -404,24 +348,6 @@ void detectStartupFlags() {
 
     if (Xstick < 324) {
       clearBoundsFromEEPROM();
-      break;
-    }
-
-    if (Ystick > 700) {
-      setLedState(HIGH);
-      isKeyboardMode = true;
-      isHoldToWalk = false;
-      isHoldToRun = true;
-
-      break;
-    }
-
-    if (Ystick < 324) {
-      setLedState(HIGH);
-      isKeyboardMode = true;
-      isHoldToWalk = true;
-      isHoldToRun = false;
-
       break;
     }
   }
@@ -497,25 +423,18 @@ void clearBoundsFromEEPROM() {
   setLedState(LOW);
 }
 
-void calculateKeyboardModeOffsets() {
-  keyboardModeXUpperModifierOffset = abs((map(xHigh, 513, xHigh, 513, 1023) - (513 + KEYBOARD_MODE_X_START_OFFSET)) * KEYBOARD_MODE_X_MODIFIER_SCALE);
-  keyboardModeXLowerModifierOffset = abs((map(xLow, xLow, 511, 0, 511) - (511 - KEYBOARD_MODE_X_START_OFFSET)) * KEYBOARD_MODE_X_MODIFIER_SCALE);
-  keyboardModeYUpperModifierOffset = abs((map(yHigh, 513, yHigh, 513, 1023) - (513 + KEYBOARD_MODE_Y_START_OFFSET)) * KEYBOARD_MODE_Y_MODIFIER_SCALE);
-  keyboardModeYLowerModifierOffset = abs((map(yLow, yLow, 511, 0, 511) - (511 - KEYBOARD_MODE_Y_START_OFFSET)) * KEYBOARD_MODE_Y_MODIFIER_SCALE);
-}
-
 void outputInitialState() {
   doStickCalculations();
 
-  Keyboard.print("Deadzone: ");
+  Keyboard.print(F("Deadzone: "));
   Keyboard.println(deadzone);
-  Keyboard.print("Upper Bound: ");
+  Keyboard.print(F("Upper Bound: "));
   Keyboard.println(upperBound);
-  Keyboard.print("Lower Bound: ");
+  Keyboard.print(F("Lower Bound: "));
   Keyboard.println(lowerBound);
-  Keyboard.print("X Rest: ");
+  Keyboard.print(F("X Rest: "));
   Keyboard.println(Xstick);
-  Keyboard.print("Y Rest: ");
+  Keyboard.print(F("Y Rest: "));
   Keyboard.println(Ystick);
 
   if (isInsideDeadzone(Xstick)) {
@@ -526,25 +445,17 @@ void outputInitialState() {
     Ystick = 512;
   }
 
-  Keyboard.print("Adjusted X Rest: ");
+  Keyboard.print(F("Adjusted X Rest: "));
   Keyboard.println(Xstick);
-  Keyboard.print("Adjusted Y Rest: ");
+  Keyboard.print(F("Adjusted Y Rest: "));
   Keyboard.println(Ystick);
-  Keyboard.print("Keyboard Mode X Upper Modifier Offset: ");
-  Keyboard.println(keyboardModeXUpperModifierOffset);
-  Keyboard.print("Keyboard Mode X Lower Modifier Offset: ");
-  Keyboard.println(keyboardModeXLowerModifierOffset);
-  Keyboard.print("Keyboard Mode Y Upper Modifier Offset: ");
-  Keyboard.println(keyboardModeYUpperModifierOffset);
-  Keyboard.print("Keyboard Mode Y Lower Modifier Offset: ");
-  Keyboard.println(keyboardModeYLowerModifierOffset);
-  Keyboard.print("EEPROM Lowest X: ");
+  Keyboard.print(F("EEPROM Lowest X: "));
   Keyboard.println(getLowestXFromEEPROM());
-  Keyboard.print("EEPROM Highest X: ");
+  Keyboard.print(F("EEPROM Highest X: "));
   Keyboard.println(getHighestXFromEEPROM());
-  Keyboard.print("EEPROM Lowest Y: ");
+  Keyboard.print(F("EEPROM Lowest Y: "));
   Keyboard.println(getLowestYFromEEPROM());
-  Keyboard.print("EEPROM Highest Y: ");
+  Keyboard.print(F("EEPROM Highest Y: "));
   Keyboard.println(getHighestYFromEEPROM());
 }
 
@@ -575,13 +486,13 @@ void doMinMaxAccumulationAndOutput() {
     }
   }
 
-  Keyboard.print("Lowest X: ");
+  Keyboard.print(F("Lowest X: "));
   Keyboard.println(lowestX);
-  Keyboard.print("Highest X: ");
+  Keyboard.print(F("Highest X: "));
   Keyboard.println(highestX);
-  Keyboard.print("Lowest Y: ");
+  Keyboard.print(F("Lowest Y: "));
   Keyboard.println(lowestY);
-  Keyboard.print("Highest Y: ");
+  Keyboard.print(F("Highest Y: "));
   Keyboard.println(highestY);
-  Keyboard.println("");
+  Keyboard.println(F(""));
 }
