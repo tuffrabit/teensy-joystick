@@ -53,7 +53,7 @@ short yHigh;
 bool isKeyboardMode;
 
 // up, down, left, right
-bool keyboardModeKeyStatus[5] = {false, false, false, false};
+bool keyboardModeKeyStatus[4] = {false, false, false, false};
 Bounce joystickButton1 = Bounce(JOYSTICK_1_BUTTON_PIN, 10);
 
 void setup() {
