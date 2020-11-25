@@ -55,6 +55,7 @@ bool isKeyboardMode;
 // up, down, left, right
 bool keyboardModeKeyStatus[4] = {false, false, false, false};
 Bounce joystickButton1 = Bounce(JOYSTICK_1_BUTTON_PIN, 10);
+unsigned long lastTime = 0;
 
 void setup() {
   Joystick.useManualSend(true);
@@ -87,6 +88,7 @@ void setup() {
 
   Xstick = 512;
   Ystick = 512;
+  lastTime = millis();
 }
 
 void setLedState(int state) {
@@ -106,9 +108,9 @@ void doStickCalculations(bool constrainDeadzone = false) {
       Xstick = 512;
     } else {
       if (Xstick > 512) {
-        Xstick = constrain(map((Xstick - deadzone), 513, (xHigh - edgeAdjust), 513, 1023), 513, 1023);
+        Xstick = constrain(map((Xstick - deadzone), 513, xLow, 513, 1023), 513, 1023);
       } else if (Xstick < 512) {
-        Xstick = constrain(map((Xstick + deadzone), (xLow + edgeAdjust), 511, 0, 511), 0, 511);
+        Xstick = constrain(map((Xstick + deadzone), xHigh, 511, 0, 511), 0, 511);
       }
     }
 
@@ -116,64 +118,73 @@ void doStickCalculations(bool constrainDeadzone = false) {
       Ystick = 512;
     } else {
       if (Ystick > 512) {
-        Ystick = constrain(map((Ystick - deadzone), 513, (yHigh - edgeAdjust), 513, 1023), 513, 1023);
+        Ystick = constrain(map((Ystick - deadzone), 513, yLow, 513, 1023), 513, 1023);
       } else if (Ystick < 512) {
-        Ystick = constrain(map((Ystick + deadzone), (yLow + edgeAdjust), 511, 0, 511), 0, 511);
+        Ystick = constrain(map((Ystick + deadzone), yHigh, 511, 0, 511), 0, 511);
       }
     }
   }
 }
 
 void loop() {
-  doStickCalculations(true);
-  joystickButton1.update();
+  unsigned long time = millis();
 
-  if (isKeyboardMode) {
-    // up, down, left, right, modifier
-    bool keyboardModeKeyPress[5] = {false, false, false, false, false};
+  // 125hz polling rate
+  if(time - lastTime >= 8) {
+    lastTime = time;
 
-    if (Xstick > (512 + KEYBOARD_MODE_X_START_OFFSET)) {
-      keyboardModeKeyPress[3] = true;
-    } else if (Xstick < (512 - KEYBOARD_MODE_X_START_OFFSET)) {
-      keyboardModeKeyPress[2] = true;
+    doStickCalculations(true);
+    joystickButton1.update();
+  
+    if (isKeyboardMode) {
+      // up, down, left, right, modifier
+      bool keyboardModeKeyPress[4] = {false, false, false, false};
+  
+      if (Xstick > (512 + KEYBOARD_MODE_X_START_OFFSET)) {
+        keyboardModeKeyPress[3] = true;
+      } else if (Xstick < (512 - KEYBOARD_MODE_X_START_OFFSET)) {
+        keyboardModeKeyPress[2] = true;
+      }
+  
+      if (Ystick < (512 - KEYBOARD_MODE_Y_START_OFFSET)) {
+        keyboardModeKeyPress[0] = true;
+      } else if (Ystick > (512 + KEYBOARD_MODE_Y_START_OFFSET)) {
+        keyboardModeKeyPress[1] = true;
+      }
+  
+      handleKeyboundModeKey(KEYBOARD_MODE_STICK_UP_KEY, keyboardModeKeyPress[0]);
+      handleKeyboundModeKey(KEYBOARD_MODE_STICK_DOWN_KEY, keyboardModeKeyPress[1]);
+      handleKeyboundModeKey(KEYBOARD_MODE_STICK_LEFT_KEY, keyboardModeKeyPress[2]);
+      handleKeyboundModeKey(KEYBOARD_MODE_STICK_RIGHT_KEY, keyboardModeKeyPress[3]);
+  
+      if (joystickButton1.fallingEdge()) {
+        Keyboard.set_key5(BUTTON_JOYSTICK_1_KEY);
+      }
+  
+      if (joystickButton1.risingEdge()) {
+        Keyboard.set_key5(0);
+      }
+
+      Keyboard.send_now();
+    } else {
+      Joystick.X(Xstick);
+      Joystick.Y(Ystick);
+  
+      if (joystickButton1.fallingEdge()) {
+        Joystick.button(1, 1);
+      }
+  
+      if (joystickButton1.risingEdge()) {
+        Joystick.button(1, 0);
+      }
+  
+      Joystick.Z(512);
+      Joystick.Zrotate(512);
+      Joystick.sliderLeft(0);
+      Joystick.sliderRight(0);
+      Joystick.hat(-1);
+      Joystick.send_now();
     }
-
-    if (Ystick < (512 - KEYBOARD_MODE_Y_START_OFFSET)) {
-      keyboardModeKeyPress[0] = true;
-    } else if (Ystick > (512 + KEYBOARD_MODE_Y_START_OFFSET)) {
-      keyboardModeKeyPress[1] = true;
-    }
-
-    handleKeyboundModeKey(KEYBOARD_MODE_STICK_UP_KEY, keyboardModeKeyPress[0]);
-    handleKeyboundModeKey(KEYBOARD_MODE_STICK_DOWN_KEY, keyboardModeKeyPress[1]);
-    handleKeyboundModeKey(KEYBOARD_MODE_STICK_LEFT_KEY, keyboardModeKeyPress[2]);
-    handleKeyboundModeKey(KEYBOARD_MODE_STICK_RIGHT_KEY, keyboardModeKeyPress[3]);
-
-    if (joystickButton1.fallingEdge()) {
-      Keyboard.press(BUTTON_JOYSTICK_1_KEY);
-    }
-
-    if (joystickButton1.risingEdge()) {
-      Keyboard.release(BUTTON_JOYSTICK_1_KEY);
-    }
-  } else {
-    Joystick.X(Xstick);
-    Joystick.Y(Ystick);
-
-    if (joystickButton1.fallingEdge()) {
-      Joystick.button(1, 1);
-    }
-
-    if (joystickButton1.risingEdge()) {
-      Joystick.button(1, 0);
-    }
-
-    Joystick.Z(512);
-    Joystick.Zrotate(512);
-    Joystick.sliderLeft(0);
-    Joystick.sliderRight(0);
-    Joystick.hat(-1);
-    Joystick.send_now();
   }
 }
 
@@ -198,12 +209,40 @@ void handleKeyboundModeKey(int key, bool isPress) {
   if (keyIndex > -1) {
     if (isPress) {
       if (keyboardModeKeyStatus[keyIndex] == false) {
-        Keyboard.press(key);
+        switch (keyIndex) {
+          case 0:
+            Keyboard.set_key1(key);
+            break;
+          case 1:
+            Keyboard.set_key2(key);
+            break;
+          case 2:
+            Keyboard.set_key3(key);
+            break;
+          case 3:
+            Keyboard.set_key4(key);
+            break;
+        }
+        
         keyboardModeKeyStatus[keyIndex] = true;
       }
     } else {
       if (keyboardModeKeyStatus[keyIndex] == true) {
-        Keyboard.release(key);
+        switch (keyIndex) {
+          case 0:
+            Keyboard.set_key1(0);
+            break;
+          case 1:
+            Keyboard.set_key2(0);
+            break;
+          case 2:
+            Keyboard.set_key3(0);
+            break;
+          case 3:
+            Keyboard.set_key4(0);
+            break;
+        }
+        
         keyboardModeKeyStatus[keyIndex] = false;
       }
     }
@@ -277,7 +316,7 @@ void setDeadzone() {
 
 void setBounds() {
   deadzone = deadzone + 7;
-  edgeAdjust = deadzone + 15;
+  edgeAdjust = deadzone + 25;
   upperBound = 512 + deadzone;
   lowerBound = 512 - deadzone;
   xLow = getLowestXFromEEPROM();
@@ -304,6 +343,11 @@ void setBounds() {
   } else {
     yHigh = 1023 - yHigh;
   }
+
+  xLow = 1023 - (xLow + edgeAdjust);
+  xHigh = 1023 - (xHigh - edgeAdjust);
+  yLow = 1023 - (yLow + edgeAdjust);
+  yHigh = 1023 - (yHigh - edgeAdjust);
   
   setLedState(LOW);
 }
@@ -422,17 +466,29 @@ void clearBoundsFromEEPROM() {
 }
 
 void outputInitialState() {
+  const String deadzoneLabel = "Deadzone: ";
+  const String upperBoundLabel = "Upper Bound: ";
+  const String lowerBoundLabel = "Lower Bound: ";
+  const String xRestLabel = "X Rest: ";
+  const String yRestLabel = "Y Rest: ";
+  const String adjustedXRestLabel = "Adjusted X Rest: ";
+  const String adjustedYRestLabel = "Adjusted Y Rest: ";
+  const String eepromLowestXLabel = "EEPROM Lowest X: ";
+  const String eepromHighestXLabel = "EEPROM Highest X: ";
+  const String eepromLowestYLabel = "EEPROM Lowest Y: ";
+  const String eepromHighestYLabel = "EEPROM Highest Y: ";
+  
   doStickCalculations();
 
-  Keyboard.print(F("Deadzone: "));
+  Keyboard.print(deadzoneLabel);
   Keyboard.println(deadzone);
-  Keyboard.print(F("Upper Bound: "));
+  Keyboard.print(upperBoundLabel);
   Keyboard.println(upperBound);
-  Keyboard.print(F("Lower Bound: "));
+  Keyboard.print(lowerBoundLabel);
   Keyboard.println(lowerBound);
-  Keyboard.print(F("X Rest: "));
+  Keyboard.print(xRestLabel);
   Keyboard.println(Xstick);
-  Keyboard.print(F("Y Rest: "));
+  Keyboard.print(yRestLabel);
   Keyboard.println(Ystick);
 
   if (isInsideDeadzone(Xstick)) {
@@ -443,21 +499,26 @@ void outputInitialState() {
     Ystick = 512;
   }
 
-  Keyboard.print(F("Adjusted X Rest: "));
+  Keyboard.print(adjustedXRestLabel);
   Keyboard.println(Xstick);
-  Keyboard.print(F("Adjusted Y Rest: "));
+  Keyboard.print(adjustedYRestLabel);
   Keyboard.println(Ystick);
-  Keyboard.print(F("EEPROM Lowest X: "));
+  Keyboard.print(eepromLowestXLabel);
   Keyboard.println(getLowestXFromEEPROM());
-  Keyboard.print(F("EEPROM Highest X: "));
+  Keyboard.print(eepromHighestXLabel);
   Keyboard.println(getHighestXFromEEPROM());
-  Keyboard.print(F("EEPROM Lowest Y: "));
+  Keyboard.print(eepromLowestYLabel);
   Keyboard.println(getLowestYFromEEPROM());
-  Keyboard.print(F("EEPROM Highest Y: "));
+  Keyboard.print(eepromHighestYLabel);
   Keyboard.println(getHighestYFromEEPROM());
 }
 
 void doMinMaxAccumulationAndOutput() {
+  const String lowestXLabel = "Lowest X: ";
+  const String highestXLabel = "Highest X: ";
+  const String lowestYLabel = "Lowest Y: ";
+  const String highestYLabel = "Highest Y: ";
+  const String emptyLabel = "";
   unsigned long startTime = millis();
   int highestX = 512;
   int lowestX = 512;
@@ -484,13 +545,13 @@ void doMinMaxAccumulationAndOutput() {
     }
   }
 
-  Keyboard.print(F("Lowest X: "));
+  Keyboard.print(lowestXLabel);
   Keyboard.println(lowestX);
-  Keyboard.print(F("Highest X: "));
+  Keyboard.print(highestXLabel);
   Keyboard.println(highestX);
-  Keyboard.print(F("Lowest Y: "));
+  Keyboard.print(lowestYLabel);
   Keyboard.println(lowestY);
-  Keyboard.print(F("Highest Y: "));
+  Keyboard.print(highestYLabel);
   Keyboard.println(highestY);
-  Keyboard.println(F(""));
+  Keyboard.println(emptyLabel);
 }
